@@ -26,7 +26,7 @@ WEEKLY = DATA / "weekly_summary.csv"
 FIELDS = ["venue", "date", "bay", "start", "end", "hours", "prime_hours", "first_seen", "last_seen"]
 
 # Local (Ottawa) hours at which each check runs
-SCHEDULE = {"bandit": {9, 12, 17, 18, 19, 20, 21, 22, 23}, "target": {23}}
+SCHEDULE = {"bandit": set(), "target": {23}}
 
 VENUES = {
     "bandit": {"name": "Bandit Golf", "bays": 3, "hours_per_day": 22,
