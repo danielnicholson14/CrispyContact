@@ -206,8 +206,8 @@ def tab_date(label, today):
 
 def check_bandit(page, rows, now):
     v = VENUES["bandit"]
-    page.goto(v["url"], wait_until="networkidle")
-    page.wait_for_function("() => [...document.querySelectorAll('button')].some(b => (b.innerText || '').trim() === 'Today')", timeout=30000)
+    page.goto(v["url"], wait_until="domcontentloaded", timeout=60000)
+    page.wait_for_function("() => [...document.querySelectorAll('button')].some(b => (b.innerText || '').trim() === 'Today')", timeout=45000)
     page.wait_for_timeout(2000)
     tabs = page.evaluate(JS_TABS)
     if not tabs:
@@ -239,8 +239,8 @@ def check_target(page, rows, now):
     v = VENUES["target"]
     seen, added = now.strftime("%Y-%m-%d %H:%M"), 0
     for d in (now.date() - timedelta(days=1), now.date()):  # yesterday catches late bookings
-        page.goto(v["url"].format(d=d.isoformat()), wait_until="networkidle")
-        page.wait_for_selector("text=Ottawa #1", timeout=30000)
+        page.goto(v["url"].format(d=d.isoformat()), wait_until="domcontentloaded", timeout=60000)
+        page.wait_for_selector("text=Ottawa #1", timeout=45000)
         page.wait_for_timeout(3000)
         data = page.evaluate(JS_TARGET)
         if data["heads"] == 0:
@@ -267,6 +267,17 @@ def gate(event, forced):
     print(f"tasks={','.join(tasks)}")
 
 
+def debug(page, name):
+    """Save what the page looked like when a check failed."""
+    try:
+        DATA.mkdir(exist_ok=True)
+        page.screenshot(path=str(DATA / f"debug_{name}.png"), full_page=True)
+        print(f"--- {name} page at failure: {page.url} ---")
+        print(page.evaluate("() => document.body ? document.body.innerText.slice(0, 1500) : '(no body)'"))
+    except Exception as ex:
+        print(f"(debug capture failed: {ex})")
+
+
 def run(tasks):
     from playwright.sync_api import sync_playwright
     rows, now = load_rows(), datetime.now(TZ)
@@ -283,6 +294,7 @@ def run(tasks):
             except Exception as ex:  # keep other venue's results if one fails
                 failed = True
                 print(f"ERROR in {t}: {ex}", file=sys.stderr)
+                debug(page, t)
         browser.close()
     save(rows)
     if failed:
