@@ -1,3 +1,4 @@
 venue,week_starting_monday,booked_hours,prime_hours,capacity_hours,utilization
 TARGET Ottawa,2026-09-21,5.8,2.5,1344,0.4%
-TARGET Ottawa,2026-09-28,100.2,57.2,1344,7.5%
+TARGET Ottawa,2026-09-28,104.0,57.5,1344,7.7%
+TARGET Ottawa,2026-10-05,6.5,2.0,1344,0.5%
