@@ -3,13 +3,13 @@ name: Publish tracker data
 on:
   push:
     branches: [main]
-    paths: ["weekly_summary.csv"]      # ← same path as DATA_FILE below
+    paths: ["data/weekly_summary.csv"]      # ← same path as DATA_FILE below
   schedule:
     - cron: "17 */6 * * *"          # every 6 hours, as a backstop
   workflow_dispatch:                # adds a "Run workflow" button
 
 env:
-  DATA_FILE: weekly_summary.csv                    # ← path to the weekly rollup in CrispyContact
+  DATA_FILE: data/weekly_summary.csv                    # ← path to the weekly rollup in CrispyContact
   PUBLIC_REPO: danielnicholson14/sim-tracker # ← your public repo
 
 jobs:
