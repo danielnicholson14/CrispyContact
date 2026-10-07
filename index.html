@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Chores">
+<meta name="theme-color" content="#D9E1E5">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.json">
+<title>Chores</title>
+<style>
+  :root {
+    --wall: #D9E1E5;
+    --sheet: #F8FAFB;
+    --ink: #1D2B36;
+    --muted: #5B6B77;
+    --line: #C9D3D9;
+    --blue: #285E8E;
+    --good: #3D8B5F;
+    --soon: #D39B17;
+    --late: #C2412D;
+    --never: #9AA7B0;
+    --font: "Avenir Next", "Avenir", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; background: var(--wall); color: var(--ink); font-family: var(--font); }
+  body { -webkit-text-size-adjust: 100%; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  button { font-family: var(--font); touch-action: manipulation; cursor: pointer; }
+
+  .wrap { max-width: 980px; margin: 0 auto; padding: 22px 22px 40px; }
+
+  /* Header */
+  .top { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 18px; }
+  .day { font-size: 40px; font-weight: 700; letter-spacing: -0.5px; line-height: 1; }
+  .date { font-size: 20px; color: var(--muted); font-weight: 500; margin-top: 6px; }
+  .right { text-align: right; }
+  .clock { font-size: 40px; font-weight: 500; line-height: 1; letter-spacing: -0.5px; }
+  .tools { margin-top: 12px; }
+  .btn { display: inline-block; border: 0; border-radius: 10px; padding: 11px 18px; font-size: 18px; font-weight: 600; background: var(--sheet); color: var(--ink); margin-left: 8px; }
+  .btn:active { opacity: 0.6; }
+  .btn.primary { background: var(--blue); color: #fff; }
+  .btn.danger { background: transparent; color: var(--late); padding-left: 0; padding-right: 0; margin-left: 0; }
+  .btn.danger.armed { background: var(--late); color: #fff; padding-left: 18px; padding-right: 18px; }
+
+  /* Board */
+  .sheet { background: var(--sheet); border-radius: 14px; overflow: hidden; box-shadow: 0 1px 0 rgba(29,43,54,0.08), 0 8px 24px -12px rgba(29,43,54,0.25); }
+  .cols { display: flex; padding: 12px 22px 10px 40px; font-size: 15px; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--line); }
+  .cols .c1 { -webkit-box-flex: 1; flex: 1; }
+  .cols .c2 { width: 36%; }
+  .editnote { padding: 12px 22px; font-size: 16px; color: var(--blue); font-weight: 500; border-bottom: 1px solid var(--line); background: #EAF1F7; }
+
+  .row { position: relative; display: flex; align-items: center; min-height: 84px; border-bottom: 1px solid var(--line); background: var(--sheet); -webkit-transition: background-color 0.6s; transition: background-color 0.6s; }
+  .row:last-child { border-bottom: 0; }
+  .row:active { background: #EEF2F4; }
+  .row.flash { background: #DCEFE3; -webkit-transition: none; transition: none; }
+
+  /* Freshness bar: drains as a chore ages */
+  .bar { align-self: stretch; width: 18px; background: #E6EBEE; position: relative; margin-right: 20px; }
+  .fill { position: absolute; left: 0; right: 0; bottom: 0; -webkit-transition: height 0.5s ease-out; transition: height 0.5s ease-out; }
+  .good .fill { background: var(--good); }
+  .soon .fill { background: var(--soon); }
+  .late .bar { background: var(--late); }
+  .never .bar { background: repeating-linear-gradient(45deg, #E6EBEE, #E6EBEE 6px, #D3DADF 6px, #D3DADF 12px); }
+  .open .fill { background: var(--never); }
+
+  .main { -webkit-box-flex: 1; flex: 1; padding: 14px 12px 14px 0; min-width: 0; }
+  .name { font-size: 26px; font-weight: 600; line-height: 1.15; letter-spacing: -0.2px; }
+  .room { font-size: 16px; color: var(--muted); margin-top: 3px; }
+  .last { width: 36%; padding: 14px 22px 14px 0; }
+  .when { font-size: 22px; font-weight: 500; }
+  .sub { font-size: 16px; margin-top: 3px; font-weight: 600; color: var(--muted); }
+  .good .sub { color: var(--good); }
+  .soon .sub { color: #A87908; }
+  .late .sub { color: var(--late); }
+  .never .when { color: var(--never); }
+
+  .move { display: flex; flex-direction: column; margin-right: 16px; }
+  .move button { border: 0; background: #E6EBEE; color: var(--ink); width: 54px; height: 34px; font-size: 18px; border-radius: 8px; margin: 3px 0; }
+  .move button:active { background: var(--line); }
+  .move button[disabled] { opacity: 0.3; }
+
+  .empty { padding: 50px 30px; text-align: center; font-size: 20px; color: var(--muted); }
+  .actions { margin-top: 16px; display: flex; justify-content: space-between; }
+  .actions .btn { margin-left: 0; }
+  .actions div .btn { margin-left: 8px; }
+
+  /* Toast */
+  .toast { position: fixed; left: 50%; bottom: 28px; -webkit-transform: translate(-50%, 140px); transform: translate(-50%, 140px); background: var(--ink); color: #fff; border-radius: 12px; padding: 14px 14px 14px 22px; font-size: 18px; font-weight: 500; display: flex; align-items: center; max-width: 92%; -webkit-transition: -webkit-transform 0.25s; transition: transform 0.25s; z-index: 15; }
+  .toast.show { -webkit-transform: translate(-50%, 0); transform: translate(-50%, 0); }
+  .toast span { margin-right: 18px; }
+  .toast button { border: 0; background: rgba(255,255,255,0.16); color: #fff; font-size: 18px; font-weight: 600; padding: 9px 16px; border-radius: 8px; }
+  .toast button.hide { display: none; }
+
+  .warn { display: none; background: var(--late); color: #fff; padding: 12px 18px; border-radius: 10px; margin-bottom: 14px; font-size: 17px; font-weight: 500; }
+  .warn.show { display: block; }
+
+  /* Sheets (modals) */
+  .overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(29,43,54,0.45); z-index: 20; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .overlay.show { display: block; }
+  .modal { background: var(--sheet); border-radius: 16px; max-width: 620px; margin: 40px auto; padding: 24px 26px; -webkit-user-select: text; user-select: text; }
+  .modal h2 { margin: 0 0 18px; font-size: 28px; font-weight: 700; letter-spacing: -0.3px; }
+  .modal h3 { margin: 24px 0 8px; font-size: 18px; font-weight: 600; color: var(--muted); }
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 16px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+  .field input, .field select, .modal textarea { width: 100%; font-family: var(--font); font-size: 20px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); -webkit-appearance: none; }
+  .field select { background: #fff url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9'%3E%3Cpath d='M1 1l6 6 6-6' stroke='%235B6B77' stroke-width='2' fill='none'/%3E%3C/svg%3E") no-repeat right 16px center; padding-right: 40px; }
+  .modal textarea { font-size: 14px; height: 150px; font-family: Menlo, Courier, monospace; }
+  .hint { font-size: 15px; color: var(--muted); margin: 6px 0 0; line-height: 1.4; }
+  .error { color: var(--late); font-size: 16px; font-weight: 500; margin-top: 8px; min-height: 1px; }
+  .mfoot { display: flex; justify-content: space-between; align-items: center; margin-top: 22px; }
+  .mfoot .btn { margin-left: 8px; }
+  .hist { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+  .hist li { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 18px; }
+  .hist button { border: 0; background: none; color: var(--late); font-size: 16px; font-weight: 600; padding: 8px 4px; }
+  .hist .none { color: var(--muted); }
+  .split { display: flex; }
+  .split .field { -webkit-box-flex: 1; flex: 1; }
+  .split .field + .field { margin-left: 12px; }
+  .hidden { display: none !important; }
+  .sync { font-size: 15px; font-weight: 500; color: var(--muted); margin-top: 8px; }
+  .sync:before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--never); margin-right: 7px; vertical-align: 1px; }
+  .sync.ok:before { background: var(--good); }
+  .sync.busy:before { background: var(--soon); }
+  .sync.bad { color: var(--late); }
+  .sync.bad:before { background: var(--late); }
+  .status { font-size: 16px; font-weight: 500; margin-top: 10px; min-height: 1px; }
+  .status.ok { color: var(--good); }
+  .status.bad { color: var(--late); }
+  .whochore { font-size: 20px; color: var(--muted); margin: -8px 0 20px; }
+  .whobtn { display: block; width: 100%; border: 0; border-radius: 12px; background: var(--blue); color: #fff; font-size: 28px; font-weight: 600; padding: 22px; margin-bottom: 12px; }
+  .whobtn:active { opacity: 0.7; }
+  .addrow { display: flex; margin-top: 14px; }
+  .addrow input { -webkit-box-flex: 1; flex: 1; font-family: var(--font); font-size: 20px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); -webkit-appearance: none; }
+  .addrow .btn { margin-left: 10px; }
+  .version { font-size: 14px; color: var(--muted); margin-top: 22px; }
+
+  @media (max-width: 700px) {
+    .wrap { padding: 14px 12px 30px; }
+    .day, .clock { font-size: 30px; }
+    .name { font-size: 21px; }
+    .when { font-size: 18px; }
+    .cols .c2, .last { width: 40%; }
+    .bar { width: 12px; margin-right: 14px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .row, .fill, .toast { -webkit-transition: none; transition: none; }
+  }
+</style>
+</head>
+<body ontouchstart="">
+<div class="wrap">
+  <div class="top">
+    <div>
+      <div class="day" id="day"></div>
+      <div class="date" id="date"></div>
+      <div class="sync" id="sync"></div>
+    </div>
+    <div class="right">
+      <div class="clock" id="clock"></div>
+      <div class="tools">
+        <button class="btn" id="sortBtn"></button>
+        <button class="btn primary" id="editBtn">Edit board</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="warn" id="warn">Changes couldn't be saved on this iPad. Make a backup from Edit board before closing the app.</div>
+
+  <div class="sheet">
+    <div class="cols" id="cols"><div class="c1">Chore</div><div class="c2">Last done</div></div>
+    <div class="editnote hidden" id="editnote">Tap a chore to change or delete it. Use the arrows to reorder.</div>
+    <div id="list"></div>
+  </div>
+
+  <div class="actions hidden" id="actions">
+    <button class="btn primary" id="addBtn">Add chore</button>
+    <div>
+      <button class="btn" id="peopleBtn">People</button>
+      <button class="btn" id="syncBtn">Sync settings</button>
+      <button class="btn" id="backupBtn">Back up or restore</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="toastText"></span><button id="undoBtn">Undo</button></div>
+
+<!-- Chore editor -->
+<div class="overlay" id="editorOverlay">
+  <div class="modal">
+    <h2 id="editorTitle">Edit chore</h2>
+    <div class="field">
+      <label for="fName">Chore</label>
+      <input id="fName" type="text" autocomplete="off" autocapitalize="sentences" placeholder="e.g. Clean the fridge">
+    </div>
+    <div class="field">
+      <label for="fRoom">Room or note (optional)</label>
+      <input id="fRoom" type="text" autocomplete="off" autocapitalize="words" placeholder="e.g. Kitchen">
+    </div>
+    <div class="split">
+      <div class="field">
+        <label for="fFreq">How often</label>
+        <select id="fFreq">
+          <option value="0">No set schedule</option>
+          <option value="1">Daily</option>
+          <option value="2">Every 2 days</option>
+          <option value="3">Every 3 days</option>
+          <option value="7">Weekly</option>
+          <option value="14">Every 2 weeks</option>
+          <option value="30">Monthly</option>
+          <option value="60">Every 2 months</option>
+          <option value="90">Every 3 months</option>
+          <option value="180">Every 6 months</option>
+          <option value="365">Yearly</option>
+          <option value="custom">Custom…</option>
+        </select>
+      </div>
+      <div class="field hidden" id="customWrap">
+        <label for="fDays">Every how many days</label>
+        <input id="fDays" type="number" inputmode="numeric" pattern="[0-9]*" min="1" max="999">
+      </div>
+    </div>
+    <p class="hint">With a schedule, the bar beside the chore drains and turns yellow, then red, as it comes due.</p>
+    <div class="error" id="editorError"></div>
+
+    <div id="histWrap">
+      <h3>Recent completions</h3>
+      <ul class="hist" id="hist"></ul>
+    </div>
+
+    <div class="mfoot">
+      <button class="btn danger" id="deleteBtn">Delete chore</button>
+      <div>
+        <button class="btn" id="cancelBtn">Cancel</button>
+        <button class="btn primary" id="saveBtn">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Backup / restore -->
+<div class="overlay" id="backupOverlay">
+  <div class="modal">
+    <h2>Back up or restore</h2>
+    <h3 style="margin-top:0">Back up</h3>
+    <p class="hint">Copy this text and paste it into Notes or an email to yourself. It contains every chore and its history.</p>
+    <textarea id="exportText" readonly></textarea>
+    <div style="margin-top:10px"><button class="btn primary" id="copyBtn" style="margin-left:0">Copy backup</button></div>
+
+    <h3>Restore</h3>
+    <p class="hint">Paste a backup here to replace everything on the board. With sync on, this replaces the board on every device.</p>
+    <textarea id="importText" placeholder="Paste backup text"></textarea>
+    <div class="error" id="importError"></div>
+    <div class="mfoot">
+      <button class="btn danger" id="restoreBtn">Restore from backup</button>
+      <button class="btn" id="closeBackupBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Who did it -->
+<div class="overlay" id="whoOverlay">
+  <div class="modal">
+    <h2>Who did it?</h2>
+    <div class="whochore" id="whoChore"></div>
+    <div id="whoList"></div>
+    <div class="mfoot">
+      <button class="btn" id="whoSkip" style="margin-left:0">Just mark it done</button>
+      <button class="btn" id="whoCancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- People -->
+<div class="overlay" id="peopleOverlay">
+  <div class="modal">
+    <h2>People</h2>
+    <p class="hint" style="margin-top:0">When there are names here, tapping a chore asks who did it. Names are shared with every synced device. With no names, chores are marked done in one tap.</p>
+    <ul class="hist" id="peopleList" style="margin-top:16px"></ul>
+    <div class="addrow">
+      <input id="fPerson" type="text" autocomplete="off" autocapitalize="words" maxlength="20" placeholder="Add a name">
+      <button class="btn primary" id="addPersonBtn">Add</button>
+    </div>
+    <div class="error" id="peopleError"></div>
+    <div id="meWrap">
+      <h3>This device</h3>
+      <div class="field">
+        <select id="fMe"></select>
+      </div>
+      <p class="hint">On your own phone, pick your name so it never asks. Leave the pantry iPad on Ask each time.</p>
+    </div>
+    <div class="mfoot">
+      <span></span>
+      <button class="btn" id="closePeopleBtn">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sync settings -->
+<div class="overlay" id="syncOverlay">
+  <div class="modal">
+    <h2>Sync settings</h2>
+    <p class="hint" style="margin-top:0">Paste the web app link and sync key from your Google Sheet setup. Every device using the same link and key shares one board.</p>
+    <div class="field" style="margin-top:16px">
+      <label for="fUrl">Web app link</label>
+      <input id="fUrl" type="url" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="https://script.google.com/macros/s/.../exec">
+    </div>
+    <div class="field">
+      <label for="fKey">Sync key</label>
+      <input id="fKey" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+    </div>
+    <div class="status" id="syncMsg"></div>
+    <h3>Duplicate chores</h3>
+    <p class="hint">Combines chores with the same name and room into one, keeping every completion. Fixes it on all connected devices.</p>
+    <div style="margin-top:10px"><button class="btn" id="dedupeBtn" style="margin-left:0;background:#E6EBEE">Merge duplicate chores</button></div>
+    <p class="version" id="versionInfo"></p>
+    <div class="mfoot">
+      <button class="btn danger" id="disconnectBtn">Stop syncing this device</button>
+      <div>
+        <button class="btn" id="closeSyncBtn">Close</button>
+        <button class="btn primary" id="connectBtn">Connect</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var APP_VERSION = '4';            // keep in step with VERSION in sw.js
+  var KEY = 'choreboard.v1';        // board data
+  var PREFS = 'choreboard.prefs';   // this device only: sort, sync link, key, who this device is
+  var DAY = 86400000;
+  var MAX_LOG = 40;
+  var MAX_REMOVED = 40;
+
+  var state, prefs;
+  var editing = false;
+  var editId = null;
+  var lastAction = null;
+  var toastTimer = null;
+  var deleteArmed = false;
+  var restoreArmed = false;
+  var whoFor = null, whoTimer = null;
+
+  var syncing = false, syncAgain = false, syncTimer = null;
+  var syncInfo = { cls: '', text: '' };
+  var serverVersion = null;
+
+  var swReg = null, pendingReload = false, lastUpdateCheck = 0;
+
+  function $(id) { return document.getElementById(id); }
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (ch) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+    });
+  }
+  function trim(s) { return String(s).replace(/^\s+|\s+$/g, ''); }
+
+  /* ---------- Merge (identical copy lives in Code.gs) ---------- */
+
+  function mergeChores(a, b) {
+    var map = {};
+    var ids = [];
+    function add(c) {
+      if (!c || !c.id) return;
+      if (!map[c.id]) { map[c.id] = mergeOne(c, c); ids.push(c.id); }
+      else map[c.id] = mergeOne(map[c.id], c);
+    }
+    (a || []).forEach(add);
+    (b || []).forEach(add);
+    return ids.map(function (id) { return map[id]; }).sort(function (x, y) {
+      return (x.order - y.order) || (x.id < y.id ? -1 : x.id > y.id ? 1 : 0);
+    });
+  }
+
+  function mergeOne(x, y) {
+    var xu = x.updatedAt || 0, yu = y.updatedAt || 0;
+    var newer = x;
+    if (yu > xu) newer = y;
+    else if (yu === xu && metaKey(y) > metaKey(x)) newer = y;
+    var removed = union(x.removed, y.removed);
+    var log = union(x.log, y.log).filter(function (t) { return removed.indexOf(t) < 0; }).slice(0, MAX_LOG);
+    return {
+      id: x.id,
+      name: String(newer.name || ''),
+      room: String(newer.room || ''),
+      freq: parseInt(newer.freq, 10) || 0,
+      order: typeof newer.order === 'number' ? newer.order : 0,
+      deleted: !!newer.deleted,
+      updatedAt: newer.updatedAt || 0,
+      log: log,
+      removed: removed.slice(0, MAX_REMOVED),
+      by: mergeBy(x.by, y.by, log)
+    };
+  }
+
+  // Who completed each entry, keyed by timestamp
+  function mergeBy(p, q, log) {
+    var out = {};
+    log.forEach(function (t) {
+      var a = p && typeof p[t] === 'string' ? p[t] : '';
+      var b = q && typeof q[t] === 'string' ? q[t] : '';
+      var v = a > b ? a : b;
+      if (v) out[t] = v;
+    });
+    return out;
+  }
+
+  function mergePeople(a, b) {
+    a = cleanPeople(a);
+    b = cleanPeople(b);
+    if (b.updatedAt > a.updatedAt) return b;
+    if (b.updatedAt === a.updatedAt && JSON.stringify(b.names) > JSON.stringify(a.names)) return b;
+    return a;
+  }
+
+  function cleanPeople(p) {
+    var names = [];
+    if (p && Array.isArray(p.names)) {
+      p.names.forEach(function (n) {
+        n = String(n).replace(/^\s+|\s+$/g, '');
+        if (n && names.indexOf(n) < 0 && names.length < 8) names.push(n);
+      });
+    }
+    return { names: names, updatedAt: (p && p.updatedAt) || 0 };
+  }
+
+  function metaKey(c) {
+    return JSON.stringify([c.name || '', c.room || '', parseInt(c.freq, 10) || 0, c.order || 0, !!c.deleted]);
+  }
+
+  function union(p, q) {
+    var seen = {}, out = [];
+    (p || []).concat(q || []).forEach(function (t) {
+      if (typeof t === 'number' && t > 0 && !seen[t]) { seen[t] = true; out.push(t); }
+    });
+    return out.sort(function (m, n) { return n - m; });
+  }
+
+  /* ---------- Data ---------- */
+
+  function defaults() {
+    var list = [
+      ['Wipe kitchen counters', 'Kitchen', 1],
+      ['Take out garbage and recycling', 'Curbside', 7],
+      ['Vacuum main floor', 'Main floor', 7],
+      ['Clean bathrooms', 'Bathrooms', 7],
+      ['Change bed sheets', 'Bedrooms', 14],
+      ['Mop floors', 'Kitchen and entry', 14],
+      ['Dust surfaces', 'Whole house', 14],
+      ['Clean out the fridge', 'Kitchen', 30],
+      ['Replace furnace filter', 'Basement', 90]
+    ];
+    return {
+      version: 2,
+      pristine: true,   // untouched defaults: replaced by the shared board on first sync
+      people: cleanPeople(null),
+      chores: list.map(function (c, i) {
+        return { id: uid(), name: c[0], room: c[1], freq: c[2], order: i, deleted: false, updatedAt: 0, log: [], removed: [], by: {} };
+      })
+    };
+  }
+
+  function isValid(d) {
+    return !!d && Array.isArray(d.chores) && d.chores.every(function (c) {
+      return c && typeof c.name === 'string' && Array.isArray(c.log);
+    });
+  }
+
+  function normalize(d) {
+    var chores = d.chores.map(function (c, i) {
+      if (!c.id) c.id = uid();
+      if (typeof c.order !== 'number') c.order = i;
+      return c;
+    });
+    return { version: 2, pristine: d.pristine === true, people: cleanPeople(d.people), chores: mergeChores(chores, []) };
+  }
+
+  function loadPrefs() {
+    var p = {};
+    try { p = JSON.parse(localStorage.getItem(PREFS)) || {}; } catch (e) { p = {}; }
+    if (p.sort !== 'manual' && p.sort !== 'urgent') p.sort = 'urgent';
+    if (typeof p.me !== 'string') p.me = '';
+    return p;
+  }
+
+  function savePrefs() {
+    try { localStorage.setItem(PREFS, JSON.stringify(prefs)); } catch (e) { /* ignore */ }
+  }
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (raw) {
+        var d = JSON.parse(raw);
+        if (isValid(d)) {
+          if (d.sort && !localStorage.getItem(PREFS)) prefs.sort = d.sort; // carry over from v1
+          return normalize(d);
+        }
+      }
+    } catch (e) { /* fall through */ }
+    return defaults();
+  }
+
+  function saveLocal() {
+    try {
+      localStorage.setItem(KEY, JSON.stringify(state));
+      $('warn').className = 'warn';
+    } catch (e) {
+      $('warn').className = 'warn show';
+    }
+  }
+
+  // Call after any change the user makes
+  function changed() {
+    state.pristine = false;
+    saveLocal();
+    queueSync(800);
+  }
+
+  function find(id) {
+    for (var i = 0; i < state.chores.length; i++) {
+      if (state.chores[i].id === id && !state.chores[i].deleted) return state.chores[i];
+    }
+    return null;
+  }
+
+  function visible() {
+    return state.chores.filter(function (c) { return !c.deleted; });
+  }
+
+  function names() { return state.people.names; }
+
+  /* ---------- Sync ---------- */
+
+  function syncOn() { return !!(prefs.url && prefs.key); }
+
+  function setSync(cls, text) {
+    syncInfo = { cls: cls, text: text };
+    var el = $('sync');
+    el.className = 'sync ' + cls;
+    el.textContent = text;
+  }
+
+  function idleSyncText() {
+    if (!syncOn()) setSync('', 'Only on this device');
+  }
+
+  function queueSync(delay) {
+    if (!syncOn()) return;
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(sync, delay || 0);
+  }
+
+  function sync(onDone) {
+    if (!syncOn()) { if (onDone) onDone(false, 'Sync is off.'); return; }
+    if (syncing) { syncAgain = true; return; }
+    syncing = true;
+    if (syncInfo.cls !== 'ok') setSync('busy', 'Syncing…');
+
+    var wasPristine = state.pristine;
+    var body = JSON.stringify({ key: prefs.key, chores: wasPristine ? [] : state.chores, people: state.people });
+
+    fetch(prefs.url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: body
+    }).then(function (r) {
+      if (!r.ok) throw new Error('http');
+      return r.json();
+    }).then(function (res) {
+      if (res.error === 'bad-key') throw new Error('bad-key');
+      if (res.error || !Array.isArray(res.chores)) throw new Error('server');
+      serverVersion = res.server || 1;
+      if (wasPristine && state.pristine) {
+        if (res.chores.length) state.chores = mergeChores(res.chores, []);   // join the existing shared board
+        else syncAgain = true;                                               // first device: upload the starter list
+        state.pristine = false;
+      } else {
+        state.chores = mergeChores(state.chores, res.chores);
+      }
+      if (res.people) state.people = mergePeople(state.people, res.people);
+      if (prefs.me && names().indexOf(prefs.me) < 0) { prefs.me = ''; savePrefs(); }
+      saveLocal();
+      setSync('ok', 'Synced at ' + fmtTime(Date.now()));
+      render();
+      if (onDone) onDone(true);
+    }).catch(function (err) {
+      var msg = err && err.message === 'bad-key'
+        ? 'Sync key rejected. Check Sync settings.'
+        : 'Not synced. Will retry.';
+      setSync('bad', msg);
+      if (onDone) onDone(false, msg);
+    }).then(function () {
+      syncing = false;
+      if (syncAgain) { syncAgain = false; queueSync(300); }
+    });
+  }
+
+  /* ---------- Dates ---------- */
+
+  function startOfDay(ts) { var d = new Date(ts); d.setHours(0, 0, 0, 0); return d.getTime(); }
+  function addDays(ts, n) { var d = new Date(ts); d.setDate(d.getDate() + n); return d.getTime(); }
+  function daysBetween(a, b) { return Math.round((startOfDay(b) - startOfDay(a)) / DAY); }
+  function fmtTime(ts) { return new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); }
+
+  function whenText(ts, now) {
+    var dd = daysBetween(ts, now);
+    var d = new Date(ts);
+    if (dd <= 0) return 'Today, ' + fmtTime(ts);
+    if (dd === 1) return 'Yesterday, ' + fmtTime(ts);
+    if (dd < 7) return d.toLocaleDateString([], { weekday: 'long' }) + ', ' + fmtTime(ts);
+    var opts = { month: 'short', day: 'numeric' };
+    if (d.getFullYear() !== new Date(now).getFullYear()) opts.year = 'numeric';
+    return d.toLocaleDateString([], opts);
+  }
+
+  function fullWhen(ts) {
+    return new Date(ts).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) + ', ' + fmtTime(ts);
+  }
+
+  function freqLabel(n) {
+    var map = { 1: 'Daily', 7: 'Weekly', 14: 'Every 2 weeks', 30: 'Monthly', 365: 'Yearly' };
+    return map[n] || ('Every ' + n + ' days');
+  }
+
+  function status(c, now) {
+    var last = c.log.length ? c.log[0] : null;
+    if (!last) {
+      return { cls: 'never', fill: 0, when: 'Never', sub: c.freq ? freqLabel(c.freq) : 'Not done yet', score: 1e9 };
+    }
+    var who = c.by && c.by[last] ? c.by[last] + ' · ' : '';
+    var ago = Math.max(0, daysBetween(last, now));
+    if (!c.freq) {
+      return {
+        cls: 'open', fill: 1, when: whenText(last, now),
+        sub: who + (ago === 0 ? 'Done today' : (ago === 1 ? '1 day ago' : ago + ' days ago')),
+        score: -1e6 + ago
+      };
+    }
+    var due = addDays(startOfDay(last), c.freq);
+    var dueEnd = addDays(due, 1);
+    var left = daysBetween(now, due);
+    var soonAt = Math.max(0, Math.round(c.freq * 0.2));
+    var cls = left < 0 ? 'late' : (left <= soonAt ? 'soon' : 'good');
+    var fill = Math.max(0, Math.min(1, (dueEnd - now) / (c.freq * DAY)));
+    var sub;
+    if (left > 1) sub = 'Due in ' + left + ' days';
+    else if (left === 1) sub = 'Due tomorrow';
+    else if (left === 0) sub = 'Due today';
+    else if (left === -1) sub = 'Overdue by 1 day';
+    else sub = 'Overdue by ' + (-left) + ' days';
+    return { cls: cls, fill: fill, when: whenText(last, now), sub: who + sub, score: (now - dueEnd) / (c.freq * DAY) };
+  }
+
+  /* ---------- Rendering ---------- */
+
+  function renderClock() {
+    var now = new Date();
+    $('day').textContent = now.toLocaleDateString([], { weekday: 'long' });
+    $('date').textContent = now.toLocaleDateString([], { month: 'long', day: 'numeric' });
+    $('clock').textContent = fmtTime(now.getTime());
+  }
+
+  function render() {
+    renderClock();
+    idleSyncText();
+    var now = Date.now();
+    var items = visible().map(function (c, i) { return { c: c, s: status(c, now), i: i }; });
+
+    if (!editing && prefs.sort === 'urgent') {
+      items.sort(function (a, b) { return (b.s.score - a.s.score) || (a.i - b.i); });
+    }
+
+    $('sortBtn').textContent = prefs.sort === 'urgent' ? 'Sort: most due' : 'Sort: my order';
+    $('sortBtn').className = editing ? 'btn hidden' : 'btn';
+    $('editBtn').textContent = editing ? 'Done' : 'Edit board';
+    $('cols').className = editing ? 'cols hidden' : 'cols';
+    $('editnote').className = editing ? 'editnote' : 'editnote hidden';
+    $('actions').className = editing ? 'actions' : 'actions hidden';
+
+    if (!items.length) {
+      $('list').innerHTML = '<div class="empty">' + (editing
+        ? 'The board is empty. Tap Add chore to put one on it.'
+        : 'No chores yet. Tap Edit board, then Add chore.') + '</div>';
+      return;
+    }
+
+    $('list').innerHTML = items.map(function (it, idx) {
+      var c = it.c, s = it.s;
+      var right;
+      if (editing) {
+        right = '<div class="move">' +
+          '<button data-move="-1" aria-label="Move up"' + (idx === 0 ? ' disabled' : '') + '>&#9650;</button>' +
+          '<button data-move="1" aria-label="Move down"' + (idx === items.length - 1 ? ' disabled' : '') + '>&#9660;</button>' +
+          '</div>';
+      } else {
+        right = '<div class="last"><div class="when">' + esc(s.when) + '</div><div class="sub">' + esc(s.sub) + '</div></div>';
+      }
+      return '<div class="row ' + s.cls + '" data-id="' + esc(c.id) + '">' +
+        '<div class="bar"><div class="fill" style="height:' + Math.round(s.fill * 100) + '%"></div></div>' +
+        '<div class="main"><div class="name">' + esc(c.name) + '</div>' +
+          (c.room ? '<div class="room">' + esc(c.room) + '</div>' : '') + '</div>' +
+        right + '</div>';
+    }).join('');
+  }
+
+  /* ---------- Toast ---------- */
+
+  function toast(text, withUndo) {
+    $('toastText').textContent = text;
+    $('undoBtn').className = withUndo ? '' : 'hide';
+    $('toast').className = 'toast show';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () {
+      $('toast').className = 'toast';
+      lastAction = null;
+    }, withUndo ? 7000 : 2500);
+  }
+
+  /* ---------- Actions ---------- */
+
+  function removeCompletion(c, ts) {
+    var i = c.log.indexOf(ts);
+    if (i >= 0) c.log.splice(i, 1);
+    if (c.by) delete c.by[ts];
+    if (c.removed.indexOf(ts) < 0) c.removed.unshift(ts);
+    if (c.removed.length > MAX_REMOVED) c.removed.length = MAX_REMOVED;
+  }
+
+  // Tap on a chore: ask who did it if there are names and this device isn't set to one person
+  function tapChore(id) {
+    var c = find(id);
+    if (!c) return;
+    if (c.log.length && Math.abs(Date.now() - c.log[0]) < 3000) return; // ignore double taps
+    if (!names().length) { logChore(id, ''); return; }
+    if (prefs.me) { logChore(id, prefs.me); return; }
+    openWho(id);
+  }
+
+  function logChore(id, who) {
+    var c = find(id);
+    if (!c) return;
+    var now = Date.now();
+    if (c.log.length && Math.abs(now - c.log[0]) < 3000) return;
+    c.log.unshift(now);
+    if (c.log.length > MAX_LOG) c.log.length = MAX_LOG;
+    if (!c.by) c.by = {};
+    if (who) c.by[now] = who;
+    changed();
+    lastAction = { id: id, ts: now };
+    render();
+    var row = document.querySelector('.row[data-id="' + id + '"]');
+    if (row) {
+      row.className += ' flash';
+      setTimeout(function () { row.className = row.className.replace(' flash', ''); }, 50);
+    }
+    toast((who ? who + ' did: ' : 'Marked done: ') + c.name, true);
+  }
+
+  function undo() {
+    if (!lastAction) return;
+    var c = find(lastAction.id);
+    if (c) { removeCompletion(c, lastAction.ts); changed(); render(); }
+    lastAction = null;
+    toast('Undone', false);
+  }
+
+  function move(id, dir) {
+    var list = visible();
+    var now = Date.now();
+    list.forEach(function (c, k) {              // tidy order numbers first
+      if (c.order !== k) { c.order = k; c.updatedAt = now; }
+    });
+    var i = -1;
+    for (var k = 0; k < list.length; k++) if (list[k].id === id) i = k;
+    var j = i + dir;
+    if (i < 0 || j < 0 || j >= list.length) return;
+    list[i].order = j; list[i].updatedAt = now;
+    list[j].order = i; list[j].updatedAt = now;
+    state.chores.sort(function (x, y) { return x.order - y.order; });
+    changed();
+    render();
+  }
+
+  /* ---------- Who did it ---------- */
+
+  function openWho(id) {
+    var c = find(id);
+    if (!c) return;
+    whoFor = id;
+    $('whoChore').textContent = c.name;
+    $('whoList').innerHTML = names().map(function (n, i) {
+      return '<button class="whobtn" data-i="' + i + '">' + esc(n) + '</button>';
+    }).join('');
+    $('whoOverlay').className = 'overlay show';
+    clearTimeout(whoTimer);
+    whoTimer = setTimeout(closeWho, 30000);   // don't leave the question up if nobody answers
+  }
+
+  function closeWho() {
+    clearTimeout(whoTimer);
+    $('whoOverlay').className = 'overlay';
+    whoFor = null;
+  }
+
+  function pickWho(name) {
+    var id = whoFor;
+    closeWho();
+    if (id) logChore(id, name);
+  }
+
+  /* ---------- People ---------- */
+
+  function openPeople() {
+    $('fPerson').value = '';
+    $('peopleError').textContent = '';
+    renderPeople();
+    $('peopleOverlay').className = 'overlay show';
+    $('peopleOverlay').scrollTop = 0;
+  }
+
+  function renderPeople() {
+    var list = names();
+    $('peopleList').innerHTML = list.length
+      ? list.map(function (n, i) {
+          return '<li><span>' + esc(n) + '</span><button data-i="' + i + '">Remove</button></li>';
+        }).join('')
+      : '<li class="none">No names yet. Chores are marked done with one tap.</li>';
+    $('fMe').innerHTML = '<option value="">Ask each time</option>' + list.map(function (n) {
+      return '<option value="' + esc(n) + '">' + esc(n) + '</option>';
+    }).join('');
+    $('fMe').value = prefs.me;
+    $('meWrap').className = list.length ? '' : 'hidden';
+  }
+
+  function setPeople(list) {
+    state.people = cleanPeople({ names: list, updatedAt: Date.now() });
+    if (prefs.me && names().indexOf(prefs.me) < 0) { prefs.me = ''; savePrefs(); }
+    changed();
+    renderPeople();
+  }
+
+  function addPerson() {
+    var n = trim($('fPerson').value);
+    var list = names().slice();
+    if (!n) { $('peopleError').textContent = 'Type a name first.'; return; }
+    if (n.length > 20) { $('peopleError').textContent = 'Keep names to 20 characters.'; return; }
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].toLowerCase() === n.toLowerCase()) { $('peopleError').textContent = n + ' is already on the list.'; return; }
+    }
+    if (list.length >= 8) { $('peopleError').textContent = 'That’s the limit of 8 names.'; return; }
+    list.push(n);
+    $('fPerson').value = '';
+    $('peopleError').textContent = '';
+    setPeople(list);
+  }
+
+  /* ---------- Editor ---------- */
+
+  var PRESETS = ['0', '1', '2', '3', '7', '14', '30', '60', '90', '180', '365'];
+
+  function openEditor(id) {
+    editId = id;
+    var c = id ? find(id) : null;
+    $('editorTitle').textContent = c ? 'Edit chore' : 'Add chore';
+    $('fName').value = c ? c.name : '';
+    $('fRoom').value = c ? c.room : '';
+    var f = c ? String(c.freq) : '7';
+    if (PRESETS.indexOf(f) >= 0) { $('fFreq').value = f; $('fDays').value = ''; }
+    else { $('fFreq').value = 'custom'; $('fDays').value = f; }
+    syncCustom();
+    $('editorError').textContent = '';
+    deleteArmed = false;
+    $('deleteBtn').textContent = 'Delete chore';
+    $('deleteBtn').className = c ? 'btn danger' : 'btn danger hidden';
+    $('histWrap').className = c ? '' : 'hidden';
+    renderHistory();
+    $('editorOverlay').className = 'overlay show';
+    $('editorOverlay').scrollTop = 0;
+  }
+
+  function renderHistory() {
+    var c = editId ? find(editId) : null;
+    if (!c) { $('hist').innerHTML = ''; return; }
+    if (!c.log.length) { $('hist').innerHTML = '<li class="none">Not done yet</li>'; return; }
+    $('hist').innerHTML = c.log.slice(0, 10).map(function (ts) {
+      var who = c.by && c.by[ts] ? ' · ' + c.by[ts] : '';
+      return '<li><span>' + esc(fullWhen(ts) + who) + '</span><button data-ts="' + ts + '">Remove</button></li>';
+    }).join('');
+  }
+
+  function syncCustom() {
+    $('customWrap').className = $('fFreq').value === 'custom' ? 'field' : 'field hidden';
+  }
+
+  function blurActive() {
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  }
+
+  function closeEditor() {
+    blurActive();
+    $('editorOverlay').className = 'overlay';
+    editId = null;
+  }
+
+  function saveEditor() {
+    var name = trim($('fName').value);
+    var room = trim($('fRoom').value);
+    var fv = $('fFreq').value;
+    var freq = fv === 'custom' ? parseInt($('fDays').value, 10) : parseInt(fv, 10);
+    if (!name) { $('editorError').textContent = 'Give the chore a name.'; return; }
+    if (fv === 'custom' && (!freq || freq < 1 || freq > 999)) {
+      $('editorError').textContent = 'Enter a number of days from 1 to 999.';
+      return;
+    }
+    var now = Date.now();
+    if (editId) {
+      var c = find(editId);
+      if (!c) { closeEditor(); render(); toast('That chore was deleted on another device', false); return; }
+      c.name = name; c.room = room; c.freq = freq || 0; c.updatedAt = now;
+    } else {
+      var maxOrder = -1;
+      state.chores.forEach(function (x) { if (x.order > maxOrder) maxOrder = x.order; });
+      state.chores.push({ id: uid(), name: name, room: room, freq: freq || 0, order: maxOrder + 1,
+                          deleted: false, updatedAt: now, log: [], removed: [], by: {} });
+    }
+    changed();
+    closeEditor();
+    render();
+  }
+
+  function deleteChore() {
+    if (!deleteArmed) {
+      deleteArmed = true;
+      $('deleteBtn').textContent = 'Tap again to delete';
+      $('deleteBtn').className = 'btn danger armed';
+      return;
+    }
+    var c = find(editId);
+    if (c) { c.deleted = true; c.updatedAt = Date.now(); changed(); }
+    closeEditor();
+    render();
+    toast('Chore deleted', false);
+  }
+
+  /* ---------- Backup ---------- */
+
+  function openBackup() {
+    $('exportText').value = JSON.stringify({ version: 2, people: state.people, chores: state.chores });
+    $('importText').value = '';
+    $('importError').textContent = '';
+    restoreArmed = false;
+    $('restoreBtn').textContent = 'Restore from backup';
+    $('restoreBtn').className = 'btn danger';
+    $('copyBtn').textContent = 'Copy backup';
+    $('backupOverlay').className = 'overlay show';
+    $('backupOverlay').scrollTop = 0;
+  }
+
+  function copyBackup() {
+    var ta = $('exportText');
+    var ok = false;
+    ta.removeAttribute('readonly');
+    ta.focus();
+    ta.setSelectionRange(0, ta.value.length);
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    ta.setAttribute('readonly', '');
+    ta.blur();
+    $('copyBtn').textContent = ok ? 'Copied' : 'Select the text and copy it';
+  }
+
+  function restore() {
+    var d;
+    try { d = JSON.parse($('importText').value); } catch (e) { d = null; }
+    if (!isValid(d)) {
+      $('importError').textContent = "That text isn't a chore board backup. Paste the full text from Copy backup.";
+      return;
+    }
+    if (!restoreArmed) {
+      restoreArmed = true;
+      $('restoreBtn').textContent = 'Tap again to replace the board';
+      $('restoreBtn').className = 'btn danger armed';
+      return;
+    }
+    var now = Date.now();
+    var restored = normalize(d).chores;
+    restored.forEach(function (c) { c.updatedAt = now; });
+    var ids = {};
+    restored.forEach(function (c) { ids[c.id] = true; });
+    state.chores.forEach(function (c) {         // anything not in the backup is removed
+      if (!ids[c.id]) { c.deleted = true; c.updatedAt = now; restored.push(c); }
+    });
+    state.chores = restored;
+    if (d.people) state.people = cleanPeople({ names: d.people.names, updatedAt: now });
+    changed();
+    blurActive();
+    $('backupOverlay').className = 'overlay';
+    render();
+    toast('Board restored', false);
+  }
+
+  /* ---------- Duplicates ---------- */
+
+  // Combines chores with the same name and room. Picks the same survivor on
+  // every device (lowest id) so two devices can't delete each other's copy.
+  function mergeDuplicates() {
+    var groups = {}, merged = 0, now = Date.now();
+    visible().forEach(function (c) {
+      var k = trim(c.name).toLowerCase() + '|' + trim(c.room).toLowerCase();
+      (groups[k] = groups[k] || []).push(c);
+    });
+    Object.keys(groups).forEach(function (k) {
+      var g = groups[k];
+      if (g.length < 2) return;
+      g.sort(function (x, y) { return x.id < y.id ? -1 : 1; });
+      var keep = g[0];
+      g.slice(1).forEach(function (d) {
+        var removed = union(keep.removed, d.removed);
+        keep.removed = removed.slice(0, MAX_REMOVED);
+        keep.log = union(keep.log, d.log).filter(function (t) { return removed.indexOf(t) < 0; }).slice(0, MAX_LOG);
+        keep.by = mergeBy(keep.by, d.by, keep.log);
+        if (!keep.freq && d.freq) keep.freq = d.freq;
+        d.deleted = true; d.updatedAt = now;
+        merged++;
+      });
+      keep.updatedAt = now;
+    });
+    if (merged) { changed(); render(); }
+    return merged;
+  }
+
+  /* ---------- Sync settings ---------- */
+
+  function versionText() {
+    var t = 'App version ' + APP_VERSION;
+    if (syncOn() && serverVersion !== null) {
+      t += serverVersion >= 2 ? ' · Sheet script up to date'
+                              : ' · Sheet script needs updating (names won’t sync until it is)';
+    }
+    return t;
+  }
+
+  function openSync() {
+    $('fUrl').value = prefs.url || '';
+    $('fKey').value = prefs.key || '';
+    $('syncMsg').className = 'status';
+    $('syncMsg').textContent = syncOn() ? syncInfo.text : 'Sync is off. This board is only on this device.';
+    $('disconnectBtn').className = syncOn() ? 'btn danger' : 'btn danger hidden';
+    $('versionInfo').textContent = versionText();
+    $('syncOverlay').className = 'overlay show';
+    $('syncOverlay').scrollTop = 0;
+  }
+
+  function connect() {
+    var url = trim($('fUrl').value);
+    var key = trim($('fKey').value);
+    if (!/^https?:\/\/\S+$/.test(url)) { syncMsg('bad', 'Paste the full web app link, starting with https://'); return; }
+    if (!key) { syncMsg('bad', 'Paste the sync key.'); return; }
+    prefs.url = url; prefs.key = key; savePrefs();
+    syncMsg('', 'Connecting…');
+    $('connectBtn').disabled = true;
+    sync(function (ok, msg) {
+      $('connectBtn').disabled = false;
+      $('versionInfo').textContent = versionText();
+      if (ok) {
+        var n = mergeDuplicates();
+        syncMsg('ok', 'Connected. This device now shares the board.' + (n ? ' Merged ' + n + ' duplicate chore' + (n > 1 ? 's' : '') + '.' : ''));
+        $('disconnectBtn').className = 'btn danger';
+      } else {
+        syncMsg('bad', msg === 'Sync key rejected. Check Sync settings.'
+          ? 'The sync key doesn’t match. Run showKey() in Apps Script to see it.'
+          : 'Couldn’t reach the sync link. Check the link and the Wi-Fi.');
+      }
+    });
+  }
+
+  function syncMsg(cls, text) {
+    $('syncMsg').className = 'status ' + cls;
+    $('syncMsg').textContent = text;
+  }
+
+  function disconnect() {
+    prefs.url = ''; prefs.key = ''; savePrefs();
+    setSync('', 'Only on this device');
+    $('disconnectBtn').className = 'btn danger hidden';
+    $('versionInfo').textContent = versionText();
+    syncMsg('', 'Sync is off. This device keeps its current copy of the board.');
+  }
+
+  /* ---------- Updates ---------- */
+
+  function busy() {
+    var ids = ['editorOverlay', 'backupOverlay', 'syncOverlay', 'peopleOverlay', 'whoOverlay'];
+    for (var i = 0; i < ids.length; i++) if ($(ids[i]).className.indexOf('show') >= 0) return true;
+    return editing;
+  }
+
+  // A new version was installed: reload as soon as nobody is mid-edit
+  function applyUpdate() {
+    if (busy()) { pendingReload = true; return; }
+    location.reload();
+  }
+
+  function checkForUpdate(force) {
+    if (!swReg || !swReg.update) return;
+    var now = Date.now();
+    if (!force && now - lastUpdateCheck < 15 * 60000) return;
+    lastUpdateCheck = now;
+    try { swReg.update(); } catch (e) { /* offline or unsupported */ }
+  }
+
+  /* ---------- Wiring ---------- */
+
+  $('list').addEventListener('click', function (e) {
+    var mv = e.target.closest('[data-move]');
+    var row = e.target.closest('.row');
+    if (!row) return;
+    var id = row.getAttribute('data-id');
+    if (mv) { if (!mv.disabled) move(id, parseInt(mv.getAttribute('data-move'), 10)); return; }
+    if (editing) openEditor(id); else tapChore(id);
+  });
+
+  $('editBtn').addEventListener('click', function () { editing = !editing; render(); });
+  $('sortBtn').addEventListener('click', function () {
+    prefs.sort = prefs.sort === 'urgent' ? 'manual' : 'urgent';
+    savePrefs(); render();
+  });
+  $('addBtn').addEventListener('click', function () { openEditor(null); });
+  $('peopleBtn').addEventListener('click', openPeople);
+  $('backupBtn').addEventListener('click', openBackup);
+  $('syncBtn').addEventListener('click', openSync);
+  $('undoBtn').addEventListener('click', undo);
+
+  $('whoList').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-i]');
+    if (b) pickWho(names()[parseInt(b.getAttribute('data-i'), 10)] || '');
+  });
+  $('whoSkip').addEventListener('click', function () { pickWho(''); });
+  $('whoCancel').addEventListener('click', closeWho);
+
+  $('addPersonBtn').addEventListener('click', addPerson);
+  $('fPerson').addEventListener('keydown', function (e) { if (e.keyCode === 13) addPerson(); });
+  $('peopleList').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-i]');
+    if (!b) return;
+    var list = names().slice();
+    list.splice(parseInt(b.getAttribute('data-i'), 10), 1);
+    setPeople(list);
+  });
+  $('fMe').addEventListener('change', function () { prefs.me = $('fMe').value; savePrefs(); });
+  $('closePeopleBtn').addEventListener('click', function () { blurActive(); $('peopleOverlay').className = 'overlay'; render(); });
+
+  $('fFreq').addEventListener('change', syncCustom);
+  $('saveBtn').addEventListener('click', saveEditor);
+  $('cancelBtn').addEventListener('click', closeEditor);
+  $('deleteBtn').addEventListener('click', deleteChore);
+  $('hist').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-ts]');
+    var c = editId ? find(editId) : null;
+    if (!b || !c) return;
+    removeCompletion(c, parseInt(b.getAttribute('data-ts'), 10));
+    changed(); renderHistory(); render();
+  });
+
+  $('copyBtn').addEventListener('click', copyBackup);
+  $('restoreBtn').addEventListener('click', restore);
+  $('importText').addEventListener('input', function () {
+    restoreArmed = false;
+    $('restoreBtn').textContent = 'Restore from backup';
+    $('restoreBtn').className = 'btn danger';
+    $('importError').textContent = '';
+  });
+  $('closeBackupBtn').addEventListener('click', function () { blurActive(); $('backupOverlay').className = 'overlay'; });
+
+  $('connectBtn').addEventListener('click', connect);
+  $('disconnectBtn').addEventListener('click', disconnect);
+  $('dedupeBtn').addEventListener('click', function () {
+    var n = mergeDuplicates();
+    syncMsg(n ? 'ok' : '', n ? 'Merged ' + n + ' duplicate chore' + (n > 1 ? 's' : '') + '.' : 'No duplicates found.');
+  });
+  $('closeSyncBtn').addEventListener('click', function () { blurActive(); $('syncOverlay').className = 'overlay'; });
+
+  // Every 30 seconds: refresh the clock, pull changes, look for app updates
+  setInterval(function () {
+    if (pendingReload && !busy()) { location.reload(); return; }
+    render();
+    queueSync(0);
+    checkForUpdate(false);
+  }, 30000);
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) return;
+    render();
+    queueSync(0);
+    checkForUpdate(true);
+  });
+
+  prefs = loadPrefs();
+  state = load();
+  saveLocal();
+  savePrefs();
+  render();
+  queueSync(0);
+
+  if ('serviceWorker' in navigator) {
+    var hadController = !!navigator.serviceWorker.controller;
+    var reloading = false;
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (!hadController || reloading) return;   // first install: nothing to refresh
+      reloading = true;
+      applyUpdate();
+    });
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').then(function (reg) {
+        swReg = reg;
+        lastUpdateCheck = Date.now();
+      }).catch(function () {});
+    });
+  }
+})();
+</script>
+</body>
+</html>
