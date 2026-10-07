@@ -1,0 +1,48 @@
+name: Publish tracker data
+
+on:
+  push:
+    branches: [main]
+    paths: ["weekly_summary.csv"]      # ← same path as DATA_FILE below
+  schedule:
+    - cron: "17 */6 * * *"          # every 6 hours, as a backstop
+  workflow_dispatch:                # adds a "Run workflow" button
+
+env:
+  DATA_FILE: weekly_summary.csv                    # ← path to the weekly rollup in CrispyContact
+  PUBLIC_REPO: danielnicholson14/sim-tracker # ← your public repo
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out CrispyContact (private)
+        uses: actions/checkout@v4
+        with:
+          path: private
+
+      - name: Check out sim-tracker (public)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.PUBLIC_REPO }}
+          token: ${{ secrets.PUBLIC_REPO_TOKEN }}
+          path: public
+
+      - name: Copy the data file
+        run: |
+          mkdir -p public/data
+          ext="${DATA_FILE##*.}"
+          cp "private/$DATA_FILE" "public/data/weekly.$ext"
+
+      - name: Commit and push if it changed
+        working-directory: public
+        run: |
+          git config user.name "tracker-bot"
+          git config user.email "tracker-bot@users.noreply.github.com"
+          git add data
+          if git diff --cached --quiet; then
+            echo "Data unchanged, nothing to publish."
+            exit 0
+          fi
+          git commit -m "Update tracker data $(date -u +%Y-%m-%d)"
+          git push
