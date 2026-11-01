@@ -9,7 +9,7 @@ on:
     inputs:
       tasks:
         description: "Which checks to run now (bandit,target)"
-        default: "bandit,target"
+        default: "target"
 
 permissions:
   contents: write
