@@ -101,7 +101,16 @@ def load_rows():
     if not BOOKINGS.exists():
         return []
     with BOOKINGS.open(newline="") as f:
-        return list(csv.DictReader(f))
+        rows = list(csv.DictReader(f))
+    # TARGET's booking page can't show past days: a URL for an earlier date shows today's
+    # schedule instead. Earlier versions checked "yesterday" and so logged today's bookings
+    # a second time under yesterday's date. Any TARGET row first seen after its own date is
+    # one of those copies; drop it.
+    clean = [r for r in rows if not (r["venue"] == VENUES["target"]["name"]
+                                     and r["first_seen"][:10] > r["date"])]
+    if len(clean) != len(rows):
+        print(f"Removed {len(rows) - len(clean)} duplicate TARGET rows")
+    return clean
 
 
 def add_booking(rows, venue, d, bay, s, e, seen):
@@ -238,7 +247,7 @@ def check_bandit(page, rows, now):
 def check_target(page, rows, now):
     v = VENUES["target"]
     seen, added = now.strftime("%Y-%m-%d %H:%M"), 0
-    for d in (now.date() - timedelta(days=k) for k in (3, 2, 1, 0)):  # look back 3 days to fill gaps
+    for d in (now.date(),):  # the page only shows today; checked 4x a day so a missed run doesn't lose the day
         page.goto(v["url"].format(d=d.isoformat()), wait_until="domcontentloaded", timeout=60000)
         page.wait_for_selector("text=Ottawa #1", timeout=45000)
         page.wait_for_timeout(3000)
