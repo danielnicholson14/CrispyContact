@@ -26,7 +26,7 @@ WEEKLY = DATA / "weekly_summary.csv"
 FIELDS = ["venue", "date", "bay", "start", "end", "hours", "prime_hours", "first_seen", "last_seen"]
 
 # Local (Ottawa) hours at which each check runs
-SCHEDULE = {"bandit": set(), "target": {23}}
+SCHEDULE = {"bandit": set(), "target": {9, 17, 22, 23}}
 
 VENUES = {
     "bandit": {"name": "Bandit Golf", "bays": 3, "hours_per_day": 22,
@@ -238,7 +238,7 @@ def check_bandit(page, rows, now):
 def check_target(page, rows, now):
     v = VENUES["target"]
     seen, added = now.strftime("%Y-%m-%d %H:%M"), 0
-    for d in (now.date() - timedelta(days=1), now.date()):  # yesterday catches late bookings
+    for d in (now.date() - timedelta(days=k) for k in (3, 2, 1, 0)):  # look back 3 days to fill gaps
         page.goto(v["url"].format(d=d.isoformat()), wait_until="domcontentloaded", timeout=60000)
         page.wait_for_selector("text=Ottawa #1", timeout=45000)
         page.wait_for_timeout(3000)

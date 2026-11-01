@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Sim Tracker">
+<meta name="theme-color" content="#1D6B45">
+<meta name="robots" content="noindex">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<title>Barrhaven Sim Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: phone-first single column; launch-monitor readout tiles over a quiet turf-tinted ground; two tabs (Project / Market). */
+:root{
+  --bg:#F2F4EF; --surface:#FFFFFF; --sunk:#E7EBE3; --line:#D3D9CD;
+  --fg:#16211B; --muted:#5C6A60; --accent:#1D6B45; --accent-ink:#FFFFFF;
+  --flag:#B8860B; --good:#1D6B45; --warn:#A86A00; --bad:#B23A2E;
+  --doing-bg:#FFF3D6; --done-bg:#DDEFE3; --todo-bg:#ECEFE9;
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F1512; --surface:#18201B; --sunk:#121915; --line:#2A352E;
+  --fg:#E6ECE7; --muted:#93A198; --accent:#5BBE8A; --accent-ink:#0B1410;
+  --flag:#E3B23C; --good:#5BBE8A; --warn:#E3B23C; --bad:#E57364;
+  --doing-bg:#3A2F12; --done-bg:#163325; --todo-bg:#222B25; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F1512; --surface:#18201B; --sunk:#121915; --line:#2A352E;
+  --fg:#E6ECE7; --muted:#93A198; --accent:#5BBE8A; --accent-ink:#0B1410;
+  --flag:#E3B23C; --good:#5BBE8A; --warn:#E3B23C; --bad:#E57364;
+  --doing-bg:#3A2F12; --done-bg:#163325; --todo-bg:#222B25; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--f-body);margin:0}
+.wrap{max-width:720px;margin:0 auto;padding-inline:16px;padding-block:12px 48px;display:flex;flex-direction:column;gap:18px}
+header.top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-top:6px}
+.brand h1{font:700 30px/1 var(--f-display);letter-spacing:.01em;margin:0;text-wrap:balance}
+.brand .sub{color:var(--muted);font-size:13px;margin-top:4px}
+.count{text-align:right;margin-left:auto}
+.count .n{font:600 34px/1 var(--f-display);font-variant-numeric:tabular-nums}
+.count .l{font:500 11px/1.2 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+nav.tabs{display:grid;grid-template-columns:1fr 1fr;background:var(--sunk);border:1px solid var(--line);border-radius:10px;padding:3px;position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
+nav.tabs button{font:600 16px/1 var(--f-display);letter-spacing:.06em;text-transform:uppercase;border:0;background:transparent;color:var(--muted);padding:11px 0;border-radius:8px;cursor:pointer}
+nav.tabs button[aria-selected="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+section{display:flex;flex-direction:column;gap:10px}
+h2{font:600 13px/1 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:6px 0 0;display:flex;justify-content:space-between;align-items:center;gap:8px}
+h2 .aside{letter-spacing:0;text-transform:none;font-family:var(--f-body);font-weight:500}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.note{color:var(--muted);font-size:13px}
+.empty{padding:16px;color:var(--muted);font-size:14px}
+/* readout tiles */
+.readout{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.readout>div{background:var(--surface);padding:12px 14px;min-width:0}
+.readout .hero{grid-column:1/-1;display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.rl{font:500 11px/1.2 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.rv{font:600 30px/1.1 var(--f-display);font-variant-numeric:tabular-nums;margin-top:4px}
+.rv small{font:500 14px var(--f-body);color:var(--muted);margin-left:3px}
+.hero .rv{font-size:56px}
+.pill{display:inline-flex;align-items:center;gap:6px;font:600 12px/1 var(--f-mono);letter-spacing:.04em;padding:5px 8px;border-radius:999px;white-space:nowrap}
+.pill.low{background:color-mix(in srgb,var(--bad) 16%,transparent);color:var(--bad)}
+.pill.mid{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}
+.pill.ok{background:color-mix(in srgb,var(--good) 16%,transparent);color:var(--good)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font:500 13px/1 var(--f-body);border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:8px 12px;border-radius:999px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.chart{padding:12px 8px 6px}
+.chart svg{display:block;width:100%;height:auto}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:14px}
+th,td{padding:9px 12px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{font:500 11px/1.2 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+tr:last-child td{border-bottom:0}
+.sync{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
+.dot.live{background:var(--good)}
+/* progress */
+.progress{padding:14px;display:flex;flex-direction:column;gap:8px}
+.bar{height:10px;border-radius:5px;background:var(--sunk);overflow:hidden;display:flex}
+.bar span{display:block;height:100%}
+.bar .d{background:var(--good)} .bar .g{background:var(--flag)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.legend b{color:var(--fg);font-variant-numeric:tabular-nums}
+/* lists */
+.list{display:flex;flex-direction:column}
+.row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:11px 12px;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row .t{min-width:0;overflow-wrap:anywhere}
+.row .meta{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.row.isdone .t .title{color:var(--muted);text-decoration:line-through}
+.st{font:600 11px/1 var(--f-mono);letter-spacing:.05em;text-transform:uppercase;border:0;border-radius:6px;padding:7px 8px;min-width:58px;cursor:pointer;color:var(--fg)}
+.st.todo{background:var(--todo-bg)} .st.doing{background:var(--doing-bg);color:var(--warn)} .st.done{background:var(--done-bg);color:var(--good)}
+.st.open{background:var(--doing-bg);color:var(--warn)} .st.decided{background:var(--done-bg);color:var(--good)}
+.st[disabled]{cursor:default}
+.icon{border:0;background:transparent;color:var(--muted);font:500 18px/1 var(--f-body);padding:6px 8px;border-radius:6px;cursor:pointer}
+.editor{grid-column:1/-1;display:grid;gap:8px;grid-template-columns:1fr 1fr;padding-top:6px}
+.editor .full{grid-column:1/-1}
+.answer{font-size:13px;color:var(--fg);margin-top:2px}
+.answer::before{content:"→ ";color:var(--muted)}
+/* forms */
+label.f{display:flex;flex-direction:column;gap:4px;font:500 11px/1.2 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);min-width:0}
+input,select,textarea{font:15px/1.3 var(--f-body);color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 10px;width:100%;min-width:0}
+textarea{resize:vertical;min-height:64px}
+.btn{font:600 14px/1 var(--f-body);border:0;border-radius:8px;padding:11px 14px;cursor:pointer;background:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:transparent;color:var(--fg);border:1px solid var(--line)}
+.btn.danger{background:transparent;color:var(--bad);border:1px solid var(--line)}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+details.add{padding:0}
+details.add summary{cursor:pointer;padding:12px 14px;font-weight:600;font-size:14px;color:var(--accent);list-style:none}
+details.add summary::-webkit-details-marker{display:none}
+details.add summary::before{content:"+ "}
+details.add form{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 14px 14px}
+details.add form .full{grid-column:1/-1}
+.update{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:3px}
+.update:last-child{border-bottom:0}
+.update .who{font-size:12px;color:var(--muted)}
+.update .txt{white-space:pre-wrap;overflow-wrap:anywhere}
+.post{display:flex;flex-direction:column;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.banner{padding:14px;border-radius:12px;background:var(--sunk);border:1px solid var(--line);font-size:14px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 14px;border-radius:8px;font-size:14px;z-index:20;max-width:calc(100% - 32px)}
+@media (max-width:420px){th,td{padding:9px 7px}.hero .rv{font-size:48px}.brand h1{font-size:26px}}
+@media (prefers-reduced-motion:no-preference){nav.tabs button{transition:background .15s}}
+</style>
+<style>
+html{-webkit-text-size-adjust:100%}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+[hidden]{display:none!important}
+.login{max-width:380px;margin:12vh auto 0;display:flex;flex-direction:column;gap:14px}
+.login h1{font:700 40px/1 var(--f-display);margin:0}
+.login p{color:var(--muted);margin:0}
+.login .err{color:var(--bad);font-size:14px;min-height:20px}
+.hdr-actions{display:flex;gap:6px;align-items:center;justify-content:flex-end;margin-top:6px}
+.linkbtn{border:0;background:transparent;color:var(--muted);font:500 12px var(--f-body);cursor:pointer;padding:4px 6px;border-radius:6px}
+.btn[disabled]{opacity:.6;cursor:progress}
+</style>
+<style>
+.dot.stale{background:var(--warn)}
+.kv{display:grid;grid-template-columns:1fr auto;gap:6px 12px;padding:14px;font-variant-numeric:tabular-nums;font-size:14px}
+.kv dt{color:var(--muted)}.kv dd{margin:0;text-align:right}
+.kv .tot{font-weight:600;border-top:1px solid var(--line);padding-top:6px}
+.srcline{font:12px/1.4 var(--f-mono);color:var(--muted);overflow-wrap:anywhere}
+.help{font-size:13px;color:var(--muted)}
+.help ol{margin:6px 0 0;padding-left:20px}
+</style>
+</head>
+<body>
+<div class="wrap" id="appView">
+  <header class="top">
+    <div class="brand">
+      <h1>Barrhaven Sim Tracker</h1>
+      <div class="sub">Competitor bookings · from CrispyContact</div>
+    </div>
+    <div class="count">
+      <div class="hdr-actions"><button class="linkbtn" id="refreshBtn">Refresh</button></div>
+    </div>
+  </header>
+
+  <div class="sync" id="syncLine"><span class="dot"></span><span>Loading…</span></div>
+  <div class="chips" id="venues" aria-label="Venue"></div>
+
+  <section>
+    <h2>Latest week <span class="aside note" id="latestWeek"></span></h2>
+    <div id="latest"><div class="card empty">Loading the data file…</div></div>
+  </section>
+
+  <section>
+    <h2>Hours per bay, weekly <span class="aside note">dashed = break-even</span></h2>
+    <div class="card chart" id="chart"><div class="empty">The trend line appears once there are two or more weeks.</div></div>
+  </section>
+
+  <section>
+    <h2>Our 4-bay break-even <span class="pill mid" style="letter-spacing:.04em">Placeholder numbers</span></h2>
+    <div class="card" id="beCard"></div>
+  </section>
+
+  <section>
+    <h2>All weeks</h2>
+    <div class="card tablewrap" id="weeksTable"><div class="empty">No weeks yet.</div></div>
+    <div class="srcline" id="srcLine"></div>
+  </section>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+/* ============ SETTINGS ============ */
+// Path to the weekly data file, relative to this page. If index.html sits in the repo root
+// and the file is data/weekly.csv, leave as is. CSV or JSON both work.
+const DATA_PATH = "data/weekly.csv";
+
+// PLACEHOLDER ASSUMPTIONS — replace with real numbers as you get them.
+const OUR = {
+  bays: 4,
+  openHoursPerDay: 19,        // 6am–1am
+  avgRate: 40,                // $/bay-hour actually collected, after member discounts (TARGET lists $35–45)
+  paymentFeePct: 3,           // card / booking-platform fees, % of revenue
+  sqft: 2800,                 // ~4 bays + entry, washroom, small lounge
+  netRentPerSqft: 17,         // $/sq ft/yr; Ottawa industrial avg ≈ $16.71 (CBRE Q2 2026)
+  addlRentPerSqft: 9,         // $/sq ft/yr property tax, maintenance, insurance (TMI), a guess
+  loanAmount: 200000,         // build-out + 4 sims + access control
+  loanRatePct: 8,             // annual
+  loanYears: 7,
+  otherMonthly: 2800,         // utilities 800, software/internet 400, insurance 400, cleaning/repairs 700, marketing 500
+};
+const TARGET_AVG_RATE = 40;      // TARGET lists $35–45/hr; used for their revenue estimate
+const PRIME_HRS_PER_BAY_WEEK = 58; // matches check_bookings.py: weekdays 5–11pm (30) + weekends 8am–10pm (28)
+const STALE_AFTER_DAYS = 3;
+/* ================================== */
+
+(function(){
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt1 = n => (Math.round(n*10)/10).toLocaleString("en-CA",{maximumFractionDigits:1});
+const dayLabel = d => { const [y,m,dd]=String(d).split("-").map(Number); return new Date(y,m-1,dd).toLocaleDateString("en-CA",{month:"short",day:"numeric"}); };
+const store = { get(k){ try{return localStorage.getItem(k);}catch(e){return null;} }, set(k,v){ try{localStorage.setItem(k,v);}catch(e){} }, del(k){ try{localStorage.removeItem(k);}catch(e){} } };
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.hidden=false; clearTimeout(toast._h); toast._h=setTimeout(()=>t.hidden=true,2600); }
+
+let weeks=[], venue=store.get("simtracker-venue"), loadedAt=0, commitInfo=null;
+
+/* ---------- load the file from this same site ---------- */
+// On GitHub Pages the URL is https://OWNER.github.io/REPO/ — used to look up when the file last changed.
+const OWNER = location.hostname.endsWith(".github.io") ? location.hostname.split(".")[0] : null;
+const REPO = OWNER ? location.pathname.split("/").filter(Boolean)[0] : null;
+async function load(){
+  let res;
+  try{ res = await fetch(DATA_PATH+"?t="+Date.now(), {cache:"no-store"}); }
+  catch(e){ throw {msg:"Couldn't load the data file. Check your connection and try again."}; }
+  if(!res.ok) throw {msg:`Couldn't find ${DATA_PATH} (error ${res.status}). Check DATA_PATH at the top of index.html.`};
+  weeks = parse(await res.text());
+  loadedAt = Date.now();
+  commitInfo = null;
+  if(OWNER && REPO){
+    try{
+      const r = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/commits?path=${encodeURIComponent(DATA_PATH)}&per_page=1`);
+      const c = r.ok ? (await r.json())[0] : null;
+      if(c) commitInfo = {date:c.commit.committer.date};
+    }catch(e){}
+  }
+  render();
+}
+
+/* ---------- parsing: CSV or JSON, forgiving about column names ---------- */
+const KEYS = {
+  venue:["venue","name","competitor","location","site"],
+  week:["week","week_start","week_starting","week_starting_monday","week_beginning","weekstart","week_of","date","start"],
+  booked:["booked","booked_hours","bookedhours","booked_hrs","hours_booked"],
+  prime:["prime","prime_hours","primehours","prime_hrs","prime_booked"],
+  capacity:["capacity","capacity_hours","total_capacity","total_capacity_hours","totalcapacityhours","capacity_hrs"],
+};
+const norm = k => String(k).toLowerCase().trim().replace(/[\s\-]+/g,"_").replace(/[^a-z0-9_]/g,"");
+function pickField(obj, field){
+  const map={}; Object.keys(obj).forEach(k=>map[norm(k)]=obj[k]);
+  for(const k of KEYS[field]){ if(map[k]!==undefined && map[k]!=="") return map[k]; if(map[k.replace(/_/g,"")]!==undefined && map[k.replace(/_/g,"")]!=="") return map[k.replace(/_/g,"")]; }
+  if(field==="week"){ const k=Object.keys(map).find(k=>/week|date/.test(k)); if(k && map[k]!=="") return map[k]; }
+  return undefined;
+}
+function splitCsv(line){ const out=[]; let cur="",q=false; for(let i=0;i<line.length;i++){const c=line[i]; if(q){ if(c=='"'&&line[i+1]=='"'){cur+='"';i++;} else if(c=='"') q=false; else cur+=c; } else if(c=='"') q=true; else if(c==","){out.push(cur);cur="";} else cur+=c;} out.push(cur); return out.map(s=>s.trim()); }
+function parse(text){
+  let recs=[];
+  const t=text.trim();
+  if(t.startsWith("[")||t.startsWith("{")){
+    let j=JSON.parse(t);
+    if(!Array.isArray(j)) j = j.weeks || j.data || j.rows || Object.values(j).find(Array.isArray) || [];
+    recs=j;
+  } else {
+    const lines=t.split(/\r?\n/).filter(l=>l.trim());
+    const head=splitCsv(lines.shift());
+    recs=lines.map(l=>{const v=splitCsv(l); const o={}; head.forEach((h,i)=>o[h]=v[i]); return o;});
+  }
+  const toNum = v => v===undefined||v===null||v==="" ? null : Number(String(v).replace(/[^0-9.\-]/g,""));
+  return recs.map(r=>({
+    venue: String(pickField(r,"venue") ?? "Competitor").trim(),
+    week: String(pickField(r,"week") ?? "").slice(0,10),
+    booked: toNum(pickField(r,"booked")),
+    prime: toNum(pickField(r,"prime")),
+    capacity: toNum(pickField(r,"capacity")),
+  })).filter(w=>/^\d{4}-\d{2}-\d{2}$/.test(w.week) && w.booked!=null && !isNaN(w.booked) && w.capacity>0);
+}
+
+/* ---------- render ---------- */
+const money=n=>"$"+Math.round(n).toLocaleString("en-CA");
+const BE=(()=>{
+  const wksPerMonth=52/12, r=OUR.loanRatePct/100/12, n=OUR.loanYears*12;
+  const loan=r?OUR.loanAmount*r/(1-Math.pow(1+r,-n)):OUR.loanAmount/n;
+  const rent=OUR.sqft*(OUR.netRentPerSqft+OUR.addlRentPerSqft)/12;
+  const monthly=loan+rent+OUR.otherMonthly;
+  const netRate=OUR.avgRate*(1-OUR.paymentFeePct/100);
+  const hrsMonth=monthly/netRate;
+  const capMonth=OUR.bays*OUR.openHoursPerDay*7*wksPerMonth;
+  return {loan,rent,monthly,netRate,hrsMonth,capMonth,util:hrsMonth/capMonth*100,perBayWeek:hrsMonth/wksPerMonth/OUR.bays};
+})();
+const band=h=>h<BE.perBayWeek/2?"low":h<BE.perBayWeek?"mid":"ok";
+const bandLabel=h=>h<BE.perBayWeek/2?"Well below our break-even":h<BE.perBayWeek?"Below our break-even":"Above our break-even";
+function renderBE(){
+  $("#beCard").innerHTML=`<dl class="kv">
+    <dt>Rent (${OUR.sqft.toLocaleString("en-CA")} sq ft × $${OUR.netRentPerSqft+OUR.addlRentPerSqft}/sq ft/yr)</dt><dd>${money(BE.rent)}/mo</dd>
+    <dt>Loan (${money(OUR.loanAmount)} at ${OUR.loanRatePct}%, ${OUR.loanYears} yrs)</dt><dd>${money(BE.loan)}/mo</dd>
+    <dt>Utilities, software, insurance, cleaning, marketing</dt><dd>${money(OUR.otherMonthly)}/mo</dd>
+    <dt class="tot">Monthly costs (no owner pay)</dt><dd class="tot">${money(BE.monthly)}/mo</dd>
+    <dt>Revenue per bay-hour after ${OUR.paymentFeePct}% fees</dt><dd>$${BE.netRate.toFixed(2)}</dd>
+    <dt class="tot">Hours to break even</dt><dd class="tot">${Math.round(BE.hrsMonth)}/mo · ${fmt1(BE.perBayWeek)} per bay/week</dd>
+    <dt>As utilization (${OUR.bays} bays, ${OUR.openHoursPerDay} hrs/day)</dt><dd><b>${fmt1(BE.util)}%</b></dd>
+  </dl><div class="note" style="padding:0 14px 14px">Every number here is a placeholder. Edit the OUR block at the top of index.html as real quotes come in.</div>`;
+}
+function render(){
+  const sl=$("#syncLine");
+  const ageDays=commitInfo?(Date.now()-new Date(commitInfo.date))/86400000:0;
+  const stale=ageDays>STALE_AFTER_DAYS;
+  sl.innerHTML=`<span class="dot ${stale?"stale":"live"}"></span><span></span>`;
+  sl.lastChild.textContent = (stale?`No new data in ${Math.floor(ageDays)} days. Check that the tracker is running. `:"") + (commitInfo
+    ? "Data file last updated "+new Date(commitInfo.date).toLocaleString("en-CA",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})
+    : "Loaded "+new Date(loadedAt).toLocaleTimeString("en-CA",{hour:"numeric",minute:"2-digit"}));
+  renderBE();
+  $("#srcLine").textContent="Source: "+DATA_PATH;
+
+  const venues=[...new Set(weeks.map(w=>w.venue))].sort();
+  if(!venue||!venues.includes(venue)) venue=venues[0]||null;
+  $("#venues").innerHTML=venues.length>1?venues.map(v=>`<button class="chip" aria-pressed="${v===venue}" data-v="${esc(v)}">${esc(v)}</button>`).join(""):"";
+  const all=weeks.filter(w=>w.venue===venue).sort((a,b)=>a.week.localeCompare(b.week));
+  const isPartial=w=>{ const [y,m,d]=w.week.split("-").map(Number); return new Date(y,m-1,d+7)>new Date(); };
+  const cur=all.length&&isPartial(all[all.length-1])?all[all.length-1]:null;
+  const rows=cur&&all.length>1?all.slice(0,-1):all;
+  if(!rows.length){
+    $("#latest").innerHTML='<div class="card empty">The data file loaded, but no rows had a week date (YYYY-MM-DD), booked hours and capacity. Check the column names.</div>';
+    $("#latestWeek").textContent=""; $("#chart").innerHTML=""; $("#weeksTable").innerHTML=""; return;
+  }
+  const L=rows[rows.length-1], util=L.booked/L.capacity*100, bays=Math.max(1,Math.round(L.capacity/168));
+  const perBayWk=L.booked/bays, primeUtil=L.prime!=null?L.prime/(PRIME_HRS_PER_BAY_WEEK*bays)*100:null;
+  const prev=rows.length>1?rows[rows.length-2]:null, dPts=prev?util-prev.booked/prev.capacity*100:null;
+  const primeShare=L.prime!=null&&L.booked?L.prime/L.booked*100:null;
+  $("#latestWeek").textContent=`${venue} · week of ${dayLabel(L.week)}${cur===L?" (in progress)":""}`;
+  $("#latest").innerHTML=`<div class="readout">
+    <div class="hero"><div><div class="rl">Utilization</div><div class="rv">${fmt1(util)}<small>%</small></div></div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px"><span class="pill ${band(perBayWk)}">${bandLabel(perBayWk)}</span>${dPts!=null?`<span class="note">${dPts>=0?"▲":"▼"} ${fmt1(Math.abs(dPts))} pts vs prior week</span>`:""}</div></div>
+    <div><div class="rl">Booked</div><div class="rv">${fmt1(L.booked)}<small>hrs</small></div></div>
+    <div><div class="rl">Prime</div><div class="rv">${L.prime!=null?fmt1(L.prime):"—"}<small>hrs</small></div></div>
+    <div><div class="rl">Prime % of booked</div><div class="rv">${primeShare!=null?fmt1(primeShare):"—"}<small>%</small></div></div>
+    <div><div class="rl">Prime utilization*</div><div class="rv">${primeUtil!=null?fmt1(primeUtil):"—"}<small>%</small></div></div>
+    <div><div class="rl">Per bay / week</div><div class="rv">${fmt1(perBayWk)}<small>hrs</small></div><div class="note">we need ${fmt1(BE.perBayWeek)}</div></div>
+    <div><div class="rl">Est. revenue*</div><div class="rv">${money(L.booked*TARGET_AVG_RATE)}<small>/wk</small></div><div class="note">≈ ${money(L.booked*TARGET_AVG_RATE*52/12)}/mo</div></div>
+    <div style="grid-column:1/-1"><div class="rl">Capacity</div><div class="note" style="margin-top:4px">${L.capacity.toLocaleString("en-CA")} hrs/week = ${bays} bays × ${fmt1(L.capacity/bays)} hrs. *Prime utilization assumes ${PRIME_HRS_PER_BAY_WEEK} prime hrs per bay per week; revenue assumes $${TARGET_AVG_RATE}/hr. Both are placeholders.</div></div>
+  </div>`;
+  if(cur&&cur!==L){ const [y,m,d]=cur.week.split("-").map(Number); const days=Math.min(7,Math.max(1,Math.ceil((new Date()-new Date(y,m-1,d))/86400000)));
+    $("#latest").insertAdjacentHTML("beforeend",`<div class="note" style="margin-top:8px">This week so far (day ${days} of 7, from ${dayLabel(cur.week)}): ${fmt1(cur.booked)} hrs booked, ${cur.prime!=null?fmt1(cur.prime)+" prime":"prime n/a"}. Shown above is the last full week.</div>`); }
+  renderChart(rows);
+  $("#weeksTable").innerHTML=`<table><thead><tr><th>Week of</th><th>Booked</th><th>Prime</th><th>Capacity</th><th>Util.</th></tr></thead><tbody>${
+    all.slice().reverse().map(w=>`<tr><td>${esc(dayLabel(w.week))} <span class="note">${w===cur?"so far":w.week.slice(0,4)}</span></td><td>${fmt1(w.booked)}</td><td>${w.prime!=null?fmt1(w.prime):"—"}</td><td>${w.capacity.toLocaleString("en-CA")}</td><td><b>${fmt1(w.booked/w.capacity*100)}%</b></td></tr>`).join("")
+  }</tbody></table>`;
+}
+function renderChart(rows){
+  const el=$("#chart");
+  if(rows.length<2){ el.innerHTML='<div class="empty">The trend line appears once there are two or more weeks. Data so far: 1 week.</div>'; return; }
+  const W=420,H=210,pl=46,pr=12,pt=26,pb=30;
+  const vals=rows.map(w=>w.booked/Math.max(1,Math.round(w.capacity/168)));
+  const top=Math.ceil(Math.max(...vals,BE.perBayWeek*1.15)/5)*5;
+  const x=i=>pl+i*(W-pl-pr)/(rows.length-1), y=v=>pt+(H-pt-pb)*(1-v/top);
+  const line=vals.map((v,i)=>`${i?"L":"M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join("");
+  const area=line+`L${x(vals.length-1).toFixed(1)},${y(0)}L${x(0).toFixed(1)},${y(0)}Z`;
+  const step=Math.max(1,Math.ceil(rows.length/4)), last=vals.length-1;
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Booked hours per bay per week for ${esc(venue)}, against our break-even">
+    ${[0,top/2,top].map(t=>`<line x1="${pl}" x2="${W-pr}" y1="${y(t)}" y2="${y(t)}" stroke="var(--line)" stroke-width="1"/><text x="${pl-8}" y="${y(t)+4}" text-anchor="end" font-size="14" font-family="IBM Plex Mono, monospace" fill="var(--muted)">${fmt1(t)}</text>`).join("")}
+    <line x1="${pl}" x2="${W-pr}" y1="${y(BE.perBayWeek)}" y2="${y(BE.perBayWeek)}" stroke="var(--flag)" stroke-width="2" stroke-dasharray="6 5"/>
+    <text x="${pl+6}" y="${y(BE.perBayWeek)-7}" font-size="13" font-family="IBM Plex Mono, monospace" fill="var(--flag)">our break-even ${fmt1(BE.perBayWeek)}</text>
+    <path d="${area}" fill="var(--accent)" fill-opacity=".12"/>
+    <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+    ${rows.map((w,i)=>(i%step===0||i===last)&&!(i!==last&&last-i<step)?`<text x="${x(i)}" y="${H-8}" text-anchor="${i===0?"start":i===last?"end":"middle"}" font-size="14" font-family="IBM Plex Mono, monospace" fill="var(--muted)">${esc(dayLabel(w.week))}</text>`:"").join("")}
+    <circle cx="${x(last)}" cy="${y(vals[last])}" r="5" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>
+    <text x="${x(last)-8}" y="${y(vals[last])-10}" text-anchor="end" font-size="15" font-weight="600" font-family="IBM Plex Mono, monospace" fill="var(--fg)">${fmt1(vals[last])} hrs</text>
+  </svg>`;
+}
+$("#venues").addEventListener("click",e=>{ const b=e.target.closest("[data-v]"); if(!b) return; venue=b.dataset.v; store.set("simtracker-venue",venue); render(); });
+
+/* ---------- refresh ---------- */
+async function refresh(quiet){
+  const b=$("#refreshBtn"); b.textContent="Refreshing…";
+  try{ await load(); if(!quiet) toast("Up to date"); }
+  catch(e){ toast(e.msg); if(!weeks.length) $("#latest").innerHTML=`<div class="card empty">${esc(e.msg)}</div>`; }
+  finally{ b.textContent="Refresh"; }
+}
+$("#refreshBtn").onclick=()=>refresh(false);
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible" && Date.now()-loadedAt>60000) refresh(true); });
+refresh(true);
+})();
+</script>
+</body>
+</html>

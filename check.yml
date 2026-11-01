@@ -1,0 +1,53 @@
+name: Competitor booking checks
+
+on:
+  schedule:
+    # UTC times covering Ottawa 9am, noon, 5-11pm in both EDT and EST.
+    # The script decides which checks actually run based on Ottawa local time.
+    - cron: "5 0,1,2,3,4,13,14,16,17,21,22,23 * * *"
+  workflow_dispatch:
+    inputs:
+      tasks:
+        description: "Which checks to run now (bandit,target)"
+        default: "target"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: booking-checks
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Decide which checks to run
+        id: gate
+        run: python check_bookings.py --gate "${{ github.event_name }}" "${{ github.event.inputs.tasks }}" >> "$GITHUB_OUTPUT"
+
+      - name: Install browser
+        if: steps.gate.outputs.tasks != ''
+        run: |
+          pip install playwright
+          python -m playwright install --with-deps chromium
+
+      - name: Run checks
+        if: steps.gate.outputs.tasks != ''
+        run: python check_bookings.py --run "${{ steps.gate.outputs.tasks }}"
+
+      - name: Save results
+        if: always() && steps.gate.outputs.tasks != ''
+        run: |
+          git config user.name "booking-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/
+          git diff --cached --quiet || git commit -m "Booking check $(TZ=America/Toronto date '+%Y-%m-%d %H:%M')"
+          git pull --rebase
+          git push
