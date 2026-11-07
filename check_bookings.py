@@ -22,6 +22,7 @@ from zoneinfo import ZoneInfo
 TZ = ZoneInfo("America/Toronto")
 DATA = Path(__file__).parent / "data"
 BOOKINGS = DATA / "bookings.csv"
+STATE = DATA / "last_check.txt"  # when TARGET was last checked successfully (Ottawa time)
 WEEKLY = DATA / "weekly_summary.csv"
 FIELDS = ["venue", "date", "bay", "start", "end", "hours", "prime_hours", "first_seen", "last_seen"]
 
@@ -267,12 +268,33 @@ def check_target(page, rows, now):
 
 
 # ---------------------------------------------------------------- main
+def target_due(now, last):
+    """GitHub drops many scheduled runs, so instead of fixed hours, any run that does fire
+    checks TARGET if it's due: between 8am and midnight, at most every 3 hours, plus late
+    checks after 10pm and 11pm so the whole day is captured."""
+    if now.hour < 8:
+        return False
+    if last is None or last.date() != now.date():
+        return True
+    if now - last >= timedelta(hours=3):
+        return True
+    return (now.hour >= 22 and last.hour < 22) or (now.hour >= 23 and last.hour < 23)
+
+
+def last_check():
+    try:
+        return datetime.fromisoformat(STATE.read_text().strip())
+    except (OSError, ValueError):
+        return None
+
+
 def gate(event, forced):
     if event == "workflow_dispatch":
-        tasks = [t for t in (forced or "bandit,target").split(",") if t in VENUES]
+        tasks = [t for t in (forced or "target").split(",") if t in VENUES]
     else:
-        h = datetime.now(TZ).hour
-        tasks = [k for k, hours in SCHEDULE.items() if h in hours]
+        now, last = datetime.now(TZ), last_check()
+        tasks = ["target"] if target_due(now, last) else []
+        print(f"now={now:%Y-%m-%d %H:%M}, last TARGET check={last}", file=sys.stderr)
     print(f"tasks={','.join(tasks)}")
 
 
@@ -300,6 +322,8 @@ def run(tasks):
         for t in tasks:
             try:
                 {"bandit": check_bandit, "target": check_target}[t](page, rows, now)
+                if t == "target":
+                    STATE.write_text(now.isoformat(timespec="minutes") + "\n")
             except Exception as ex:  # keep other venue's results if one fails
                 failed = True
                 print(f"ERROR in {t}: {ex}", file=sys.stderr)
